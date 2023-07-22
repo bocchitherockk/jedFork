@@ -1,13 +1,17 @@
 # Jpeg Encoder/Decoder
-this is a jpeg encoder/decoder in c that reads JPEG images and converts them to PPM, and vise versa.  
-this project was origionally created for my **[olivec](LINK_FOR_OLIVEC_REPO)** library project for computer graphics and image processing.  
-**the purpose of this project is to deeply understand the fundamentals of a jpeg image, and how does it work.**  
-90% of this work is done by Daniel Hardling I found on youtube teaching **[everything you need to know about jpeg](https://www.youtube.com/watch?v=CPT4FSkFUgs&list=PLpsTn9TA_Q8VMDyOPrDKmSJYt1DLgDZU4&index=1&ab_channel=DanielHarding)**.
+This is a jpeg encoder/decoder in c that reads JPEG images and converts them to PPM and BMP, and vise versa.  
+This project was origionally created for my **olivec<!-- add the link for the olivec repo -->** library project for computer graphics and image processing.  
+**The purpose of this project is to deeply understand the core and fundamentals of jpeg images, and how does jpeg compression work.**  
+90% of this work is done by Daniel Hardling in c++ which I found on youtube teaching **[everything you need to know about jpeg](https://www.youtube.com/watch?v=CPT4FSkFUgs&list=PLpsTn9TA_Q8VMDyOPrDKmSJYt1DLgDZU4&index=1&ab_channel=DanielHarding)**.  
+All i did was convert the logic from c++ to c, so all the credit goes to him.  
+Also i am new to git and github, so i don't know if what i am doing is OK.  
+*[original work](https://github.com/dannye/jed)*
 
 ## quick start:
-- make a **`main.c`** file
-- run **`build.sh`**  
-**!! if you want to use other names than `main.c` feel free to change `build.sh` accordingly !!**
+- make a **`main.c`** file in the ***src*** directory
+- run **`build.sh`** to build the project
+- run the executable **`main`** under the ***bin*** directory  
+**!! if you want to use names other than `main.c` feel free to change `build.sh` accordingly !!**
 ### a small example of a main.c file:
 ```c
 #include <stdlib.h>

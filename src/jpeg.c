@@ -31,7 +31,10 @@ byte zigzag[64] = {
     53, 60, 61, 54, 47, 55, 62, 63
 };
 
+/********************************************/
 /************* helper functions *************/
+/********************************************/
+
 /*
  * print binary format of a number to a certain length
  * decToBinary(7, 2) -> ERROR
@@ -40,7 +43,7 @@ byte zigzag[64] = {
  */
 void decToBinary(int number, int length) {
     if(number >= (1 << length)) { // (1 << length) = pow(2, length)
-        fprintf(stderr, "length %d is not enough to convert %d to binary\n", length, number);
+        fprintf(stderr, "ERROR: length %d is not enough to convert %d to binary\n", length, number);
         exit(1);
     }
     int binaryNum[32];
@@ -300,12 +303,14 @@ void Jpeg_printImage(JpegImage *img) {
     }
     printf("huffman coded bitStream:\n");
     printf("length: %d\n", img->huffmanCodedBitStream.length);
+    // uncomment this if you want to print the bytes in hexadecimal(it's not recommended tho cuz it is too much data)
 /*    printf("bytes:\n");
     for(int i = 0; i < img->huffmanCodedBitStream.length; i++) {
         printf("%02x ", img->huffmanCodedBitStream.data[i]);
     }
     fflush(stdout);
     printf("\n");*/
+    // uncomment this if you want to print the bytes in binary(it's not recommended tho cuz it is too much data)
 /*    printf("binary:\n");
     for(int i = 0; i < img->huffmanCodedBitStream.length; i++) {
         decToBinary(img->huffmanCodedBitStream.data[i], 8);
@@ -362,7 +367,7 @@ void Jpeg_readQuantizationTablesSegment(FILE *f, JpegImage *img) {
     }
 
     if(length < 0) {
-        fprintf(stderr, "ERROR: DQT marker length is incorrect\n");
+        fprintf(stderr, "ERROR: DQT(Define Quantization Table) marker length is incorrect\n");
         fclose(f);
         exit(1);
     }
@@ -371,7 +376,7 @@ void Jpeg_readQuantizationTablesSegment(FILE *f, JpegImage *img) {
 void Jpeg_readStartOfFrameSegment(FILE *f, JpegImage *img) {
 
     if(img->colorComponentsCount != 0) {
-        fprintf(stderr, "ERROR: multiple SOF segments detected\n");
+        fprintf(stderr, "ERROR: multiple SOF(Start Of Frame) segments encountered\n");
         fclose(f);
         exit(1);
     }
@@ -400,7 +405,7 @@ void Jpeg_readStartOfFrameSegment(FILE *f, JpegImage *img) {
 
     img->colorComponentsCount = fgetc(f);
     if(img->colorComponentsCount == 4) {
-        fprintf(stderr, "ERROR: CMYK color mode is not supported\n");
+        fprintf(stderr, "ERROR: CMYK color mode is unsupported\n");
         fclose(f);
         exit(1);
     }
@@ -413,7 +418,7 @@ void Jpeg_readStartOfFrameSegment(FILE *f, JpegImage *img) {
     for(int i = 0; i < img->colorComponentsCount; i++) {
         byte ComponentId = fgetc(f);
         if(ComponentId == 4 || ComponentId == 5) {
-            fprintf(stderr, "ERROR: YIQ color mode is not supported\n");
+            fprintf(stderr, "ERROR: YIQ color mode is unsupported\n");
             fclose(f);
             exit(1);
         }
@@ -429,7 +434,7 @@ void Jpeg_readStartOfFrameSegment(FILE *f, JpegImage *img) {
         img->colorComponents[i].horizontalSamplingFactor = samplingFactor >> 4;
         if(img->colorComponents[i].componentId == 1) {
             if(samplingFactor != 0x11 && samplingFactor != 0x12 && samplingFactor != 0x21 && samplingFactor != 0x22) {
-                fprintf(stderr, "ERROR: sampling factor other than one is unsupported, vertical: %d, horizontal: %d\n", samplingFactor & 0xf, samplingFactor >> 4);
+                fprintf(stderr, "ERROR: horizontal and vertical subsampling for luminance should not surpass 2, vertical: %d, horizontal: %d\n", samplingFactor & 0xf, samplingFactor >> 4);
                 fclose(f);
                 exit(1);
             }
@@ -443,7 +448,7 @@ void Jpeg_readStartOfFrameSegment(FILE *f, JpegImage *img) {
             img->verticalSamplingFactor = img->colorComponents[i].verticalSamplingFactor;
         } else {
             if(samplingFactor != 0x11) {
-                fprintf(stderr, "ERROR: sampling factors are unsupported, vertical: %d, horizontal: %d\n", samplingFactor & 0xf, samplingFactor >> 4);
+                fprintf(stderr, "ERROR: horizontal and vertical subsampling is unsupported for color components, vertical: %d, horizontal: %d\n", samplingFactor & 0xf, samplingFactor >> 4);
                 fclose(f);
                 exit(1);
             }
@@ -453,25 +458,28 @@ void Jpeg_readStartOfFrameSegment(FILE *f, JpegImage *img) {
         byte quantizationTableId = fgetc(f);
         img->colorComponents[i].quantizationTableId = quantizationTableId;
         if(quantizationTableId > 3) {
-            fprintf(stderr, "ERROR: invalid quantization table id (%d)assigned to component %d\n", quantizationTableId, ComponentId);
+            fprintf(stderr, "ERROR: invalid quantization table id: %d, assigned to component %d\n", quantizationTableId, ComponentId);
             fclose(f);
             exit(1);
         }
     }
 
     if(length - 8 - 3 * img->colorComponentsCount != 0) {
-        fprintf(stderr, "ERROR: invalid length of SOF marker\n");
+        fprintf(stderr, "ERROR: invalid length of SOF(Start Of Frame) marker\n");
         fclose(f);
         exit(1);
     }
 
     // the component id 1 means it is luminance component, 2 is Cb, 3 is Cr
     // but in some images you will find 0 for chrominance, 1 for Cb, 2 for Cr
-    // so i'll take care of that to be all standard 
-    if(img->colorComponents[0].componentId == 0) {
-        img->colorComponents[0].componentId++;
-        img->colorComponents[1].componentId++;
-        img->colorComponents[2].componentId++;
+    // so i'll take care of that to be all standard
+    for(int i = 0; i < img->colorComponentsCount; i++) {
+        if(img->colorComponents[i].componentId == 0) {
+            for(int j = 0; j < img->colorComponentsCount; j++) {
+                img->colorComponents[j].componentId++;
+            }
+            break;
+        }
     }
 }
 
@@ -480,7 +488,7 @@ void Jpeg_readRestartIntervalSegment(FILE *f, JpegImage *img) {
     int length = (fgetc(f) << 8) + fgetc(f);
     img->restartInterval = (fgetc(f) << 8) + fgetc(f);
     if(length - 4 != 0) {
-        fprintf(stderr, "ERROR: invalid DRI(define restrat interval)");
+        fprintf(stderr, "ERROR: invalid DRI(Define Restrat Interval)\n");
         fclose(f);
         exit(1);
     }
@@ -529,15 +537,12 @@ void Jpeg_readHuffmanTablesSegment(FILE *f, JpegImage *img) {
         }
         length -= Jpeg_huffmanTableSymbolsCount(ht);
 
-        if(type == 0) {
-            img->dcHuffmanTablesCount++;
-        } else {
-            img->acHuffmanTablesCount++;
-        }
+        if(type == 0) {img->dcHuffmanTablesCount++;}
+        else {img->acHuffmanTablesCount++;}
     }
 
     if(length != 0) {
-        fprintf(stderr, "ERROR: invalid length of DHT(define huffman table)\n");
+        fprintf(stderr, "ERROR: invalid length of DHT(Define Huffman Table)\n");
         fclose(f);
         exit(1);
     }
@@ -546,7 +551,7 @@ void Jpeg_readHuffmanTablesSegment(FILE *f, JpegImage *img) {
 void Jpeg_readStartOfScanSegment(FILE *f, JpegImage *img) {
 
     if(img->colorComponentsCount == 0) {
-        fprintf(stderr, "ERROR: encountered SOS(start of scan) before SOF(start of frame)\n");
+        fprintf(stderr, "ERROR: encountered SOS(Start Of Scan) before SOF(Start Of Frame)\n");
         fclose(f);
         exit(1);
     }
@@ -555,7 +560,7 @@ void Jpeg_readStartOfScanSegment(FILE *f, JpegImage *img) {
 
     byte componentsCount = fgetc(f);
     if(componentsCount != img->colorComponentsCount) {
-        fprintf(stderr, "ERROR: number of components indicated in SOS does not match that in SOF\n");
+        fprintf(stderr, "ERROR: number of components indicated in SOS(Start Of Scan) does not match that in SOF(Start Of Frame)\n");
         fclose(f);
         exit(1);
     }
@@ -563,7 +568,7 @@ void Jpeg_readStartOfScanSegment(FILE *f, JpegImage *img) {
     for(int i = 0; i < componentsCount; i++) {
         byte componentId = fgetc(f);
         if(img->colorComponents[i].componentId != componentId) {
-            fprintf(stderr, "ERROR: component id indicated in SOS does not match that in SOF\n");
+            fprintf(stderr, "ERROR: component id indicated in SOS(Start Of Scan) does not match that in SOF(Start Of Frame)\n");
             fclose(f);
             exit(1);
         }
@@ -581,16 +586,16 @@ void Jpeg_readStartOfScanSegment(FILE *f, JpegImage *img) {
         exit(1);
     }
     byte successiveApproximation = fgetc(f);
+    img->successiveApproximationHigh = successiveApproximation >> 4;
+    img->successiveApproximationLow = successiveApproximation & 0xf;
     if(successiveApproximation != 0x00) {
-        fprintf(stderr, "ERROR: invalid successive approximation\n");
+        fprintf(stderr, "ERROR: invalid successive approximation, high: %d  low: %d\n", img->successiveApproximationHigh, img->successiveApproximationLow);
         fclose(f);
         exit(1);
     }
-    img->successiveApproximationHigh = successiveApproximation >> 4;
-    img->successiveApproximationLow = successiveApproximation & 0xf;
 
     if(length - 6 - 2 * componentsCount != 0) {
-        fprintf(stderr, "ERROR: invalid length of SOS\n");
+        fprintf(stderr, "ERROR: invalid length of SOS(Start Of Scan\n");
         fclose(f);
         exit(1);
     }
@@ -613,7 +618,7 @@ void Jpeg_readJpegSegments(FILE *f, JpegImage *img) {
 
     // reading start of image marker
     if(previous != FFMARKER || current != SOI) {
-        fprintf(stderr, "ERROR: could not read 0xffd8 marker(start of image (SOI)), file is not a valid jpeg image\n");
+        fprintf(stderr, "ERROR: could not read SOI(Start Of image) marker '0xffd8', file is not a jpeg image\n");
         fclose(f);
         exit(1);
     }
@@ -650,7 +655,7 @@ void Jpeg_readJpegSegments(FILE *f, JpegImage *img) {
             fclose(f);
             exit(1);
         } else if(current == EOI) {
-            fprintf(stderr, "ERROR: EOI detected before SOS\n");
+            fprintf(stderr, "ERROR: EOI(End Of Image) encountered before SOS(Start Of Scan)\n");
             fclose(f);
             exit(1);
         } else if(current == DAC) {
@@ -659,15 +664,15 @@ void Jpeg_readJpegSegments(FILE *f, JpegImage *img) {
             exit(1);
         } else if(current >= SOF1 && current <= SOF15) {
             // Jpeg_readStartOfFrameSegment(f, img);
-            fprintf(stderr, "ERROR: SOF marker is unsupported\n");
+            fprintf(stderr, "ERROR: SOF(Start Of Frame) 0xff%02x marker is unsupported\n", current);
             fclose(f);
             exit(1);
         } else if(current >= RST0 && current <= RST7) {
-            fprintf(stderr, "ERROR: RSTN detected before SOS\n");
+            fprintf(stderr, "ERROR: RSTN(Restart Interval) 0xff%02x encountered before SOS(Start Of Scan)\n", current);
             fclose(f);
             exit(1);
         } else {
-            fprintf(stderr, "ERROR: unknow marker: 0x%x\n", current);
+            fprintf(stderr, "ERROR: unknown marker: 0xff%02x\n", current);
             fclose(f);
             exit(1);
         }
@@ -728,31 +733,33 @@ void Jpeg_generateHuffmanTablesCodes(JpegImage *img) {
 void Jpeg_decodeBlockComponent(BitReader *bitReader, int* component, int *previousDC, HuffmanTable dcTable, HuffmanTable acTable) {
     int errorFlag = 0;
     // get the DC value for this MCU component
-    byte length = Jpeg_getNextSymbol(bitReader, dcTable, &errorFlag);
+    byte symbol = Jpeg_getNextSymbol(bitReader, dcTable, &errorFlag);
     if (errorFlag == -1) {
-        fprintf(stderr, "ERROR: Invalid DC value\n");
+        fprintf(stderr, "ERROR: Invalid DC symbol\n");
         exit(1);
     }
-    if (length > 11) {
-        fprintf(stderr, "ERROR: DC coefficient length greater than 11\n");
+    byte numZeroes = symbol >> 4;
+    byte coeffLength = symbol & 0x0F;
+    if (coeffLength > 11) {
+        fprintf(stderr, "ERROR: DC coefficient length is greater than 11\n");
         exit(1);
     }
-    int coeff = Jpeg_getNBits(bitReader, length);
+    int coeff = Jpeg_getNBits(bitReader, coeffLength);
     if (coeff == -1) {
         fprintf(stderr, "ERROR: Invalid DC value\n");
         exit(1);
     }
-    if (length != 0 && coeff < (1 << (length - 1))) {
-        coeff -= (1 << length) - 1;
+    if (coeffLength != 0 && coeff < (1 << (coeffLength - 1))) {
+        coeff -= (1 << coeffLength) - 1;
     }
     component[0] = coeff + *previousDC;
     *previousDC = component[0];
     // get the AC values for this MCU component
     uint i = 1;
     while (i < 64) {
-        byte symbol = Jpeg_getNextSymbol(bitReader, acTable, &errorFlag);
+        symbol = Jpeg_getNextSymbol(bitReader, acTable, &errorFlag);
         if (errorFlag == -1) {
-            fprintf(stderr, "ERROR: Invalid AC value\n");
+            fprintf(stderr, "ERROR: Invalid AC symbol\n");
             exit(1);
         }
         // symbol 0x00 means fill remainder of component with 0
@@ -763,22 +770,22 @@ void Jpeg_decodeBlockComponent(BitReader *bitReader, int* component, int *previo
             return;
         }
         // otherwise, read next component coefficient
-        byte numZeroes = symbol >> 4;
-        byte coeffLength = symbol & 0x0F;
+        numZeroes = symbol >> 4;
+        coeffLength = symbol & 0x0F;
         coeff = 0;
         // symbol 0xF0 means skip 16 0's
         if (symbol == 0xF0) {
             numZeroes = 16;
         }
         if (i + numZeroes >= 64) {
-            fprintf(stderr, "ERROR: Zero run-length exceeded MCU\n");
+            fprintf(stderr, "ERROR: Zero run-length exceeded the block\n");
             exit(1);
         }
         for (uint j = 0; j < numZeroes; ++j, ++i) {
             component[zigzag[i]] = 0;
         }
         if (coeffLength > 10) {
-            fprintf(stderr, "ERROR: AC coefficient length greater than 10\n");
+            fprintf(stderr, "ERROR: AC coefficient length is greater than 10\n");
             exit(1);
         }
         if (coeffLength != 0) {
@@ -996,21 +1003,6 @@ void Jpeg_inverseDctBlocks(JpegImage *img, Block *blocks) {
     }
 }
 
-/*// convert a pixel from YCbCr color space to RGB
-void YCbCrToRGBPixel(int& y, int& cb, int& cr) {
-    int r = y + 1.402 * cr + 128;
-    int g = (y - (0.114 * (y + 1.772 * cb)) - 0.299 * (y + 1.402 * cr)) / 0.587 + 128;
-    int b = y + 1.772 * cb + 128;
-    if (r < 0)   r = 0;
-    if (r > 255) r = 255;
-    if (g < 0)   g = 0;
-    if (g > 255) g = 255;
-    if (b < 0)   b = 0;
-    if (b > 255) b = 255;
-    y  = r;
-    cb = g;
-    cr = b;
-}*/
 // convert all pixels in an MCU from YCbCr color space to RGB
 void Jpeg_YCbCrToRGBBlock(JpegImage *img, Block *luminanceBlock, Block *cbcrBlock, int v, int h) {
     for (uint y = 7; y < 8; --y) { // one mcu element
@@ -1068,7 +1060,7 @@ JpegImage Jpeg_readImage(char *fileName) {
     
     FILE *f = fopen(fileName, "rb");
     if(f == NULL) {
-        fprintf(stderr, "ERROR: could not open file %s\n", fileName);
+        fprintf(stderr, "ERROR: could not open file '%s'\n", fileName);
         exit(1);
     }
 
@@ -1085,7 +1077,7 @@ void Jpeg_saveImageAsPpm(JpegImage *img, Block *blocks, char *fileName) {
 
     FILE *f = fopen(fileName, "wb");
     if(f == NULL) {
-        fprintf(stderr, "ERROR: unable to open file: %s\n", fileName);
+        fprintf(stderr, "ERROR: unable to open file: '%s'\n", fileName);
         exit(1);
     }
 
@@ -1101,9 +1093,9 @@ void Jpeg_saveImageAsPpm(JpegImage *img, Block *blocks, char *fileName) {
             int pixelColumn = x % 8;
             int mcuIndex = mcuRow * img->blocksWidthReal + mcuColumn;
             int pixelIndex = pixelRow * 8 + pixelColumn;
-            fputc(blocks[mcuIndex].red[pixelIndex], f);
+            fputc(blocks[mcuIndex].red  [pixelIndex], f);
             fputc(blocks[mcuIndex].green[pixelIndex], f);
-            fputc(blocks[mcuIndex].blue[pixelIndex], f);
+            fputc(blocks[mcuIndex].blue [pixelIndex], f);
         }
     }
 
@@ -1111,8 +1103,8 @@ void Jpeg_saveImageAsPpm(JpegImage *img, Block *blocks, char *fileName) {
 }
 
 void putInt(FILE *f, int a) {
-    fputc((a >> 0)  & 0xff, f);
-    fputc((a >> 8)  & 0xff, f);
+    fputc((a >> 0 ) & 0xff, f);
+    fputc((a >> 8 ) & 0xff, f);
     fputc((a >> 16) & 0xff, f);
     fputc((a >> 24) & 0xff, f);
 }
@@ -1160,43 +1152,35 @@ void Jpeg_saveImageAsBmp(JpegImage *img, Block *blocks, char *filename) {
 }
 
 void fromPpmToBitmap(char *ppmFileName, char *bitmapFileName) {
-    FILE *fppm = fopen("/home/yassine/Desktop/cProjects/olivec/edgeDetection/flowers.ppm", "rb");
-    FILE *fbitmap = fopen("/home/yassine/Desktop/cProjects/olivec/jpg/tempjpg/flowers.bmp", "wb");
+    FILE *fppm = fopen(ppmFileName, "rb");
+    FILE *fbitmap = fopen(bitmapFileName, "wb");
     if(fppm == NULL) {
-        fprintf(stderr, "could not open file square1.ppm\n");
+        fprintf(stderr, "ERROR: could not open file: '%s'\n", ppmFileName);
         exit(1);
     }
     if(fbitmap == NULL) {
-        fprintf(stderr, "could not open file square1.bmp\n");
+        fprintf(stderr, "ERROR: could not open file: '%s'\n", bitmapFileName);
         exit(1);
     }
 
     fgetc(fppm);fgetc(fppm);fgetc(fppm);    // P6\n
     int width, height;
-    fscanf(fppm, "%d %d", &width, &height);
+    fscanf(fppm, "%d %d", &width, &height); // width height
     fgetc(fppm);fgetc(fppm);fgetc(fppm);fgetc(fppm);fgetc(fppm);   // \n255\n
 
     int size = 14 + 12 + height * width;
-    fprintf(fbitmap, "BM");
-    fwrite(&size, sizeof(size), 1, fbitmap);
+    fputc('B', fbitmap);
+    fputc('M', fbitmap);
 
-    int a = 0;
-    fwrite(&a, sizeof(int), 1, fbitmap);
-    a = 0x1a;
-    fwrite(&a, sizeof(int), 1, fbitmap);
-    a = 12;
-    fwrite(&a, sizeof(int), 1, fbitmap);
+    putInt(fbitmap, size);
+    putInt(fbitmap, 0);
+    putInt(fbitmap, 0x1a);
+    putInt(fbitmap, 12);
 
-    fputc(width & 0xff, fbitmap);
-    fputc((width >> 8) & 0xff, fbitmap);
-    fputc(height & 0xff, fbitmap);
-    fputc((height >> 8) & 0xff, fbitmap);
-
-    fputc(1 & 0xff, fbitmap);
-    fputc((1 >> 8) & 0xff, fbitmap);
-
-    fputc(24 & 0xff, fbitmap);
-    fputc((24 >> 8) & 0xff, fbitmap);
+    putShort(fbitmap, width);
+    putShort(fbitmap, height);
+    putShort(fbitmap, 1);
+    putShort(fbitmap, 24);
 
     Vector vec;
     Jpeg_initVector(&vec);
@@ -1214,17 +1198,11 @@ void fromPpmToBitmap(char *ppmFileName, char *bitmapFileName) {
 
     for(int i = vec.length - 1 - width*3; i >= 0; i -= width*3) {
         for(int j = 0; j < width * 3; j += 3) {
-            fputc(vec.data[i + j], fbitmap);
+            fputc(vec.data[i + j + 0], fbitmap);
             fputc(vec.data[i + j + 1], fbitmap);
             fputc(vec.data[i + j + 2], fbitmap);
         }
     }
-
-    for(int i = 0; i < vec.length; i++) {
-        fputc(vec.data[i], fbitmap);
-    }
-
-
     fclose(fbitmap);
     fclose(fppm);
 }
